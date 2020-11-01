@@ -1,0 +1,14 @@
+apiVersion: v1
+entries:
+  symfony-app:
+  - apiVersion: v2
+    appVersion: 1.0.0
+    created: "2020-11-01T22:18:55.584246846+03:00"
+    description: A Helm chart for Symfony application in Kubernetes with commands
+    digest: c8ba7bd58d8e21e9c02d1b8f6c76a2f19119ce15e10c20602265b831d9e2682e
+    name: symfony-app
+    type: application
+    urls:
+    - symfony-app-1.0.0.tgz
+    version: 1.0.0
+generated: "2020-11-01T22:18:55.583815001+03:00"
