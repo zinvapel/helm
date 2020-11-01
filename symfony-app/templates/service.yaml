@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+    name: {{ .Values.service.name }}
+spec:
+    ports:
+        - port: 80
+          targetPort: http
+    selector:
+        {{- range $name, $value := .Values.deployment.labels }}
+        {{ $name }}: {{ $value }}
+        {{- end }}

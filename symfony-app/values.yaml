@@ -1,0 +1,68 @@
+deployment:
+  name: PROJECT_NAME-APP_NAME
+  replicaCount: 2
+  revisionHistoryLimit: 1
+  maxSurge: 1
+  maxUnavailable: 1
+  labels:
+    project: PROJECT_NAME
+    app: APP_NAME
+  imagePullSecrets: []
+#    - private-docker-registry
+  securityContext:
+    runAsUser: 33
+    supplementalGroups: [33]
+  php:
+    image: MAIN_IMAGE
+    imagePullPolicy: IfNotPresent
+    migrations:
+      enabled: false
+  nginx:
+    configMap:
+      name: PROJECT_NAME-APP_NAME-nginx-config
+      serverName: PROJECT_NAME-APP_NAME-http
+    image: nginx
+    imagePullPolicy: IfNotPresent
+    securityContext:
+      exist: false
+#      runAsUser: 33
+#      supplementalGroups: [33]
+  env:
+    exist: false
+    value:
+      - name: APP_ENV
+        value: "prod"
+    valueFrom: []
+#      - name: DATABASE_USER
+#        from: secretKeyRef
+#        key: user
+service:
+  name: PROJECT_NAME-APP_NAME-http
+
+cronjobs: []
+#  - name: PROJECT_NAME-APP_NAME-command
+#    schedule: "* * * * *"
+#    completions: 1
+#    parallelism: 1
+#    activeDeadlineSeconds: 240
+#    backoffLimit: 10
+#    concurrencyPolicy: Allow
+#    labels:
+#      project: PROJECT_NAME
+#      app: APP_NAME
+#      task: PROJECT_NAME-APP_NAME-command
+#    restartPolicy: OnFailure
+#    image: MAIN_IMAGE
+#    imagePullSecrets: []
+#    #    - private-docker-registry
+#    securityContext:
+#      exists: true
+#      runAsUser: 33
+#      supplementalGroups: [33]
+#    command:
+#      list:
+#        - '/var/www/bin/console'
+#    args:
+#      exists: true
+#      list:
+#        - 'help'

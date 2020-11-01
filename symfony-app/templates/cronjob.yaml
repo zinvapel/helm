@@ -1,0 +1,57 @@
+{{- if .Values.cronjobs }}
+    {{- range .Values.cronjobs  }}
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: {{ .name }}
+spec:
+    schedule: "{{ .schedule }}"
+    concurrencyPolicy: {{ .concurrencyPolicy }}
+    jobTemplate:
+        spec:
+            completions: {{ .completions }}
+            parallelism: {{ .parallelism }}
+            activeDeadlineSeconds: {{ .activeDeadlineSeconds }}
+            backoffLimit: {{ .backoffLimit }}
+            template:
+                metadata:
+                    labels:
+                      {{- range $name, $value := .labels }}
+                        {{ $name }}: {{ $value }}
+                      {{- end }}
+                spec:
+                    restartPolicy: {{ .restartPolicy }}
+                    {{- if .imagePullSecrets }}
+                    imagePullSecrets:
+                        {{- range .imagePullSecrets }}
+                      - name: {{ . }}
+                        {{- end }}
+                    {{- end }}
+                    {{- if .securityContext.exists }}
+                    securityContext:
+                        runAsUser: {{ .securityContext.runAsUser }}
+                        supplementalGroups:
+                        {{- range .securityContext.supplementalGroups }}
+                          - {{ . }}
+                        {{- end }}
+                    {{- end }}
+                    containers:
+                      - name: command
+                        image: {{ .image }}
+                        command:
+                          {{- range .command.list  }}
+                          - {{ . }}
+                          {{- end }}
+                        {{- if .args.exists }}
+                        args:
+                          {{- range .args.list  }}
+                          - {{ . }}
+                          {{- end}}
+                        {{- end}}
+                        {{- if $.Values.deployment.env.exist }}
+                        env:
+                        {{- include "env.value" $.Values.deployment.env | indent 28 }}
+                        {{- include "env.valueFrom" $.Values.deployment.env | indent 28 }}
+                        {{- end }}
+    {{- end }}
+{{- end }}

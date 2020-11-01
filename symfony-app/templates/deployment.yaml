@@ -1,0 +1,152 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: {{ .Values.deployment.name }}
+spec:
+    replicas: {{ .Values.deployment.replicaCount }}
+    revisionHistoryLimit: {{ .Values.deployment.revisionHistoryLimit }}
+    strategy:
+        type: RollingUpdate
+        rollingUpdate:
+            maxSurge: {{ .Values.deployment.maxSurge }}
+            maxUnavailable: {{ .Values.deployment.maxUnavailable }}
+    selector:
+        matchLabels:
+            {{- range $name, $value := .Values.deployment.labels }}
+            {{ $name }}: {{ $value }}
+            {{- end }}
+    template:
+        metadata:
+            labels:
+                {{- range $name, $value := .Values.deployment.labels }}
+                {{ $name }}: {{ $value }}
+                {{- end }}
+            name: {{ .Values.deployment.name }}
+        spec:
+            {{- if .Values.deployment.imagePullSecrets }}
+            imagePullSecrets:
+                {{- range .Values.deployment.imagePullSecrets }}
+                - name: {{ . }}
+                {{- end }}
+            {{- end }}
+            securityContext:
+                runAsUser: {{ .Values.deployment.securityContext.runAsUser }}
+                supplementalGroups:
+                {{- range .Values.deployment.securityContext.supplementalGroups }}
+                  - {{ . }}
+                {{- end }}
+            affinity:
+                podAntiAffinity:
+                    preferredDuringSchedulingIgnoredDuringExecution:
+                      - podAffinityTerm:
+                          topologyKey: kubernetes.io/hostname
+                          labelSelector:
+                              matchLabels:
+                                  {{- range $name, $value := .Values.deployment.labels }}
+                                  {{ $name }}: {{ $value }}
+                                  {{- end }}
+                        weight: 100
+            tolerations:
+              - effect: NoExecute
+                key: node.kubernetes.io/not-ready
+                operator: Exists
+                tolerationSeconds: 10
+              - effect: NoExecute
+                key: node.kubernetes.io/unreachable
+                operator: Exists
+                tolerationSeconds: 10
+            volumes:
+              - name: php-code
+                emptyDir: {}
+              - name: nginx-config
+                configMap:
+                  name: {{ .Values.deployment.nginx.configMap.name }}
+                  defaultMode: 0755
+            initContainers:
+              - name: copy-code
+                image: {{ .Values.deployment.php.image }}
+                imagePullPolicy: {{ .Values.deployment.php.imagePullPolicy }}
+                command:
+                  - 'cp'
+                  - '-R'
+                  - '/var/www/.'
+                  - '/var/mount'
+                {{- if .Values.deployment.env.exist }}
+                env:
+                {{- include "env.value" .Values.deployment.env | indent 20 }}
+                {{- include "env.valueFrom" .Values.deployment.env | indent 20 }}
+                {{- end }}
+                volumeMounts:
+                  - name: php-code
+                    mountPath: /var/mount
+              {{- if .Values.deployment.php.migrations.enabled }}
+              - name: migrate
+                image: {{ .Values.deployment.php.image }}
+                imagePullPolicy: {{ .Values.deployment.php.imagePullPolicy }}
+                args:
+                    - '/var/www/bin/console'
+                    - 'doctrine:migrations:migrate'
+                    - '--allow-no-migration'
+                {{- if .Values.deployment.env.exist }}
+                env:
+                {{- include "env.value" .Values.deployment.env | indent 20 }}
+                {{- include "env.valueFrom" .Values.deployment.env | indent 20 }}
+                {{- end }}
+              {{- end }}
+            containers:
+              - name: php
+                image: {{ .Values.deployment.php.image }}
+                imagePullPolicy: {{ .Values.deployment.php.imagePullPolicy }}
+                resources:
+                    requests:
+                        cpu: 100m
+                        memory: 100M
+                    limits:
+                        cpu: 200m
+                        memory: 200M
+                readinessProbe:
+                    tcpSocket:
+                        port: 9000
+                livenessProbe:
+                    tcpSocket:
+                        port: 9000
+                {{- if .Values.deployment.env.exist }}
+                env:
+                {{- include "env.value" .Values.deployment.env | indent 20 }}
+                {{- include "env.valueFrom" .Values.deployment.env | indent 20 }}
+                {{- end }}
+              - name: nginx
+                image: {{ .Values.deployment.nginx.image }}
+                imagePullPolicy:  {{ .Values.deployment.nginx.imagePullPolicy }}
+                resources:
+                    requests:
+                        cpu: 50m
+                        memory: 50M
+                    limits:
+                        cpu: 100m
+                        memory: 200M
+                {{- if .Values.deployment.nginx.securityContext.exist }}
+                securityContext:
+                    runAsUser: {{ .Values.deployment.nginx.securityContext.runAsUser }}
+                {{- end }}
+                ports:
+                  - containerPort: 80
+                    name: http
+                readinessProbe:
+                    httpGet:
+                        port: 80
+                        path: /health
+                    periodSeconds: 10
+                livenessProbe:
+                    httpGet:
+                        port: 80
+                        path: /health
+                    initialDelaySeconds: 5
+                    periodSeconds: 10
+                    failureThreshold: 3
+                    timeoutSeconds: 1
+                volumeMounts:
+                    - name: php-code
+                      mountPath: /var/www
+                    - name: nginx-config
+                      mountPath: /etc/nginx/conf.d
