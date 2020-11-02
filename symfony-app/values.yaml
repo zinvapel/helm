@@ -24,11 +24,10 @@ deployment:
     image: nginx
     imagePullPolicy: IfNotPresent
     securityContext:
-      exist: false
-#      runAsUser: 33
-#      supplementalGroups: [33]
+      exist: true
+      runAsUser: 0
   env:
-    exist: false
+    exist: true
     value:
       - name: APP_ENV
         value: "prod"
@@ -36,6 +35,8 @@ deployment:
 #      - name: DATABASE_USER
 #        from: secretKeyRef
 #        key: user
+#        fromName: postgres-secret
+
 service:
   name: PROJECT_NAME-APP_NAME-http
 
